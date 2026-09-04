@@ -15,6 +15,11 @@ jobs:
           ref: b10797            # tag b10797 -> commit 832fd6f
           fetch-depth: 0
 
+      - name: Configure git identity (for merge commit)
+        run: |
+          git config user.email "ci@example.com"
+          git config user.name "CI Bot"
+
       - name: Merge PR 22575 on top of b10797
         shell: bash
         run: |
