@@ -1,0 +1,50 @@
+name: Build Windows CUDA (PR 22575)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout PR 22575 commit
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: 737a44fb78050c74d1fed4cccb813875ab43cba6
+          fetch-depth: 0
+
+      - name: Install CUDA 12.4
+        uses: ./.github/actions/windows-setup-cuda
+        with:
+          cuda_version: '12.4'
+          cuda_arch: x64
+
+      - name: Install Ninja
+        run: choco install ninja
+
+      - name: Configure & build (server + CUDA)
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+          cmake -S . -B build -G "Ninja Multi-Config" ^
+            -DGGML_BACKEND_DL=ON ^
+            -DGGML_NATIVE=OFF ^
+            -DGGML_CPU_ALL_VARIANTS=ON ^
+            -DGGML_CUDA=ON ^
+            -DLLAMA_BUILD_SERVER=ON ^
+            -DLLAMA_BUILD_BORINGSSL=ON
+          set /A NINJA_JOBS=%NUMBER_OF_PROCESSORS%-1
+          cmake --build build --config Release -j %NINJA_JOBS%
+
+      - name: Pack binaries
+        run: |
+          mkdir artifacts
+          7z a -snl artifacts\llama-pr22575-win-cuda-12.4-x64.zip .\build\bin\Release\*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-pr22575-win-cuda-12.4-x64.zip
+          path: artifacts\llama-pr22575-win-cuda-12.4-x64.zip
